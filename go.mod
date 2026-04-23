@@ -53,6 +53,7 @@ replace (
 	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.35.3
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.35.3
 	oras.land/oras-go => oras.land/oras-go v1.2.2 // for docker 20.10.x compatibility
+	github.com/kubereboot/kured v1.13.1 => github.com/kubereboot/kured v0.0.0-20230607191502-a27c755260a2 // v1.13.1 tag deleted from upstream; pseudo-version is the same commit
 )
 
 require github.com/rancher/rancher/pkg/apis v0.0.0
@@ -241,7 +242,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/kubereboot/kured v0.0.0-20230607191502-a27c755260a2 // indirect
+	github.com/kubereboot/kured v1.13.1 // indirect
 	github.com/microsoft/kiota-authentication-azure-go v1.1.0 // indirect
 	github.com/microsoft/kiota-http-go v1.4.4 // indirect
 	github.com/microsoft/kiota-serialization-form-go v1.0.0 // indirect
