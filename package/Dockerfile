@@ -21,7 +21,7 @@ ARG CHART_DEFAULT_BRANCH=dev-v2.15
 ARG PARTNER_CHART_DEFAULT_BRANCH=main
 ARG RKE2_CHART_DEFAULT_BRANCH=main
 # kontainer-driver-metadata branch to be set for specific branch other than dev/master, logic at rancher/rancher/pkg/settings/setting.go
-ARG CATTLE_KDM_BRANCH=dev-v2.14
+ARG CATTLE_KDM_BRANCH=dev-v2.15
 ARG VERSION=${VERSION}
 
 FROM --platform=$BUILDPLATFORM ${GODEP_APISERVER} AS godep-apiserver
@@ -172,7 +172,7 @@ ENV CATTLE_RKE2_CHART_DEFAULT_BRANCH=$RKE2_CHART_DEFAULT_BRANCH
 ENV CATTLE_MACHINE_VERSION=v0.15.0-rancher142
 ENV CATTLE_MACHINE_CHECKSUM_amd64=9ae8f09bde3d036ab71659bcdbd7f03e2566371b985eb44e67cacfa6481306e5
 ENV CATTLE_MACHINE_CHECKSUM_arm64=0d2afec21404af012ba49afd60c1d7bba962fab6685d794a46f2202b72908580
-ENV CATTLE_K3S_VERSION=v1.35.3+k3s1
+ENV CATTLE_K3S_VERSION=v1.35.4+k3s1
 ENV CATTLE_MACHINE_PROVISION_IMAGE=rancher/machine:${CATTLE_MACHINE_VERSION}
 ENV CATTLE_ETCD_VERSION=v3.6.7
 ENV CATTLE_ETCD_CHECKSUM_amd64=cf8af880c5a01ee5363cefa14a3e0cb7e5308dcf4ed17a6973099c9a7aee5a9a
@@ -188,8 +188,8 @@ ENV DOCKER_MACHINE_HARVESTER_VERSION=v1.0.6
 ENV DOCKER_MACHINE_HARVESTER_CHECKSUM_amd64=7db00430a1c047e6627681446a99219815156e971043ba7a22a083d69fafe44a
 ENV DOCKER_MACHINE_HARVESTER_CHECKSUM_arm64=e536ded30af40bdfa53a1010e39dfe2f72f5add499b564b9516c1385ee3a98c5
 ENV CATTLE_KDM_BRANCH=${CATTLE_KDM_BRANCH}
-ENV CATTLE_WINS_AGENT_VERSION=v0.5.5-rc.2
-ENV CATTLE_WINS_AGENT_CHECKSUM=cf496f165e37ee1e61f57b916bf7268c8cf7d917abfc4eaa85e83c6cb5f8a250
+ENV CATTLE_WINS_AGENT_VERSION=v0.5.5
+ENV CATTLE_WINS_AGENT_CHECKSUM=cb42373cad3260d3b628de3d18cad13c0825577337499e4b9a05dc8926300512
 ENV CATTLE_WINS_AGENT_CHECKSUM_install=86725633b000e46dbbee43228c96d5ab7aa26e7cfcba9561d82ccdd6c96f5d61
 ENV CATTLE_WINS_AGENT_CHECKSUM_uninstall=bcc0f990176079f7dc69e668907230ac785d4676e037eef5b70cf3316e614adc
 ENV CATTLE_WINS_AGENT_INSTALL_SCRIPT=https://raw.githubusercontent.com/rancher/wins/${CATTLE_WINS_AGENT_VERSION}/install.ps1
@@ -198,9 +198,9 @@ ENV CATTLE_WINS_AGENT_UPGRADE_IMAGE=rancher/wins:${CATTLE_WINS_AGENT_VERSION}
 ENV CATTLE_CSI_PROXY_AGENT_VERSION=v1.1.3
 ENV CATTLE_CSI_PROXY_AGENT_CHECKSUM=e87a56f9317b73a6cce98a071b8482f27eae07e8bbd3932ab33cb00b13693b73
 # make sure the CATTLE_SYSTEM_AGENT_VERSION is consistent with tests/v2/codecoverage/package/Dockerfile
-ENV CATTLE_SYSTEM_AGENT_VERSION=v0.3.16-rc.4
-ENV CATTLE_SYSTEM_AGENT_CHECKSUM_amd64=c8a382908106ecf646f067a428d29d13c79c1da018b8bf1db622223f50436a67
-ENV CATTLE_SYSTEM_AGENT_CHECKSUM_arm64=77348b0ea6d070adc79059fe536da0bdcc2dca69298505e5d6e35ca703bc2668
+ENV CATTLE_SYSTEM_AGENT_VERSION=v0.3.16
+ENV CATTLE_SYSTEM_AGENT_CHECKSUM_amd64=686dd937ce907185b642b12f34b0f94a9781b73f7d0d13e4204867d2f753249a
+ENV CATTLE_SYSTEM_AGENT_CHECKSUM_arm64=7ca4eaf7f639995f7fe97e90b3c690caf8e15c1f1df8363ebbb53e4b13e10adb
 ENV CATTLE_SYSTEM_AGENT_CHECKSUM_install=bd08a39dfbe7f7042f27e8a4eb13e000c27d9123f04561285deaba8bb4b14450
 ENV CATTLE_SYSTEM_AGENT_CHECKSUM_uninstall=ded6af4d28ab396dadf3f7c5871aa06c723275f9d7a4ec2d50d0fad9f52988d3
 ENV CATTLE_SYSTEM_AGENT_DOWNLOAD_PREFIX=https://github.com/rancher/system-agent/releases/download
@@ -280,7 +280,7 @@ RUN case "${ARCH}" in \
 
 
 # Set up K3s: copy the necessary binaries from the K3s image.
-COPY --from=rancher/k3s:v1.35.3-k3s1 \
+COPY --from=rancher/k3s:v1.35.4-k3s1 \
     /bin/blkid \
     /bin/bandwidth \
     /bin/cni \
@@ -296,7 +296,12 @@ COPY --from=rancher/k3s:v1.35.3-k3s1 \
     /bin/pigz \
     /bin/runc \
     /bin/which \
+    /bin/aux/iptables-apply \
+    /bin/aux/iptables-detect.sh \
+    /bin/aux/nft \
+    /bin/aux/xtables-set-mode.sh \
     /bin/aux/xtables-legacy-multi \
+    /bin/aux/xtables-nft-multi \
     /usr/bin/
 
 RUN ln -s /usr/bin/cni /usr/bin/bridge && \
@@ -311,14 +316,30 @@ RUN ln -s /usr/bin/cni /usr/bin/bridge && \
     ln -s /usr/bin/k3s /usr/bin/k3s-server && \
     ln -s /usr/bin/k3s /usr/bin/kubectl && \
     ln -s /usr/bin/pigz /usr/bin/unpigz && \
-    ln -s /usr/bin/xtables-legacy-multi /usr/bin/iptables && \
-    ln -s /usr/bin/xtables-legacy-multi /usr/bin/iptables-save && \
-    ln -s /usr/bin/xtables-legacy-multi /usr/bin/iptables-restore && \
-    ln -s /usr/bin/xtables-legacy-multi /usr/bin/iptables-translate && \
-    ln -s /usr/bin/xtables-legacy-multi /usr/bin/ip6tables && \
-    ln -s /usr/bin/xtables-legacy-multi /usr/bin/ip6tables-save && \
-    ln -s /usr/bin/xtables-legacy-multi /usr/bin/ip6tables-restore && \
-    ln -s /usr/bin/xtables-legacy-multi /usr/bin/ip6tables-translate
+    ln -s /usr/bin/iptables-detect.sh /usr/bin/ip6tables && \
+    ln -s /usr/bin/iptables-apply /usr/bin/ip6tables-apply && \
+    ln -s /usr/bin/xtables-legacy-multi /usr/bin/ip6tables-legacy && \
+    ln -s /usr/bin/xtables-legacy-multi /usr/bin/ip6tables-legacy-restore && \
+    ln -s /usr/bin/xtables-legacy-multi /usr/bin/ip6tables-legacy-save && \
+    ln -s /usr/bin/xtables-nft-multi /usr/bin/ip6tables-nft && \
+    ln -s /usr/bin/xtables-nft-multi /usr/bin/ip6tables-nft-restore && \
+    ln -s /usr/bin/xtables-nft-multi /usr/bin/ip6tables-nft-save && \
+    ln -s /usr/bin/iptables-detect.sh /usr/bin/ip6tables-restore && \
+    ln -s /usr/bin/xtables-nft-multi /usr/bin/ip6tables-restore-translate && \
+    ln -s /usr/bin/iptables-detect.sh /usr/bin/ip6tables-save && \
+    ln -s /usr/bin/xtables-nft-multi /usr/bin/ip6tables-translate && \
+    ln -s /usr/bin/iptables-detect.sh /usr/bin/iptables && \
+    ln -s /usr/bin/xtables-legacy-multi /usr/bin/iptables-legacy && \
+    ln -s /usr/bin/xtables-legacy-multi /usr/bin/iptables-legacy-restore && \
+    ln -s /usr/bin/xtables-legacy-multi /usr/bin/iptables-legacy-save && \
+    ln -s /usr/bin/xtables-nft-multi /usr/bin/iptables-nft && \
+    ln -s /usr/bin/xtables-nft-multi /usr/bin/iptables-nft-restore && \
+    ln -s /usr/bin/xtables-nft-multi /usr/bin/iptables-nft-save && \
+    ln -s /usr/bin/iptables-detect.sh /usr/bin/iptables-restore && \
+    ln -s /usr/bin/xtables-nft-multi /usr/bin/iptables-restore-translate && \
+    ln -s /usr/bin/iptables-detect.sh /usr/bin/iptables-save && \
+    ln -s /usr/bin/xtables-nft-multi /usr/bin/iptables-translate && \
+    ln -s /usr/bin/xtables-nft-multi /usr/bin/xtables-monitor
 
 COPY --from=tini /usr/bin/tini /usr/bin/tini
 
@@ -423,7 +444,7 @@ ENV ETCD_UNSUPPORTED_ARCH=${ETCD_UNSUPPORTED_ARCH}
 FROM --platform=$BUILDPLATFORM go-builder AS images
 WORKDIR /src
 ENV CGO_ENABLED=1
-ENV CATTLE_K3S_VERSION=v1.35.3+k3s1
+ENV CATTLE_K3S_VERSION=v1.35.4+k3s1
 RUN zypper -n install libbtrfs-devel libgpgme-devel
 COPY hack/airgap/go.mod hack/airgap/go.sum /src/
 RUN --mount=type=cache,target=/root/.cache,id=rancher go mod download
@@ -459,6 +480,7 @@ COPY --from=godep-wrangler / ${GODEP_WRANGLER_PATH}
 COPY go.mod go.sum ./
 COPY pkg/apis/go.mod pkg/apis/go.sum pkg/apis/
 COPY pkg/client/go.mod pkg/client/go.sum pkg/client/
+COPY pkg/plan/go.mod pkg/plan/go.sum pkg/plan/
 RUN --mount=type=cache,target=/root/.cache,id=rancher go mod download
 RUN --mount=type=cache,target=/root/.cache,id=rancher cd pkg/apis && go mod download
 RUN --mount=type=cache,target=/root/.cache,id=rancher cd pkg/client && go mod download
@@ -550,9 +572,9 @@ RUN /usr/bin/unshare --version && \
     /usr/bin/nsenter --version
 
 ARG ARCH
-ENV KUBECTL_VERSION=v1.35.3
-ENV KUBECTL_CHECKSUM_amd64=fd31c7d7129260e608f6faf92d5984c3267ad0b5ead3bced2fe125686e286ad6
-ENV KUBECTL_CHECKSUM_arm64=6f0cd088a82dde5d5807122056069e2fac4ed447cc518efc055547ae46525f14
+ENV KUBECTL_VERSION=v1.35.4
+ENV KUBECTL_CHECKSUM_amd64=b529430df69a688fd61b64ad2299edb5fd71cb58be2a4779dba624c7d3510efd
+ENV KUBECTL_CHECKSUM_arm64=6a5a4cc4e396d7626a7a693a3044b51c75520f81db30fe6816c2554e53be336f
 
 RUN case "${ARCH}" in \
         amd64) KUBECTL_CHECKSUM="${KUBECTL_CHECKSUM_amd64}" ;; \
